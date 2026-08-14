@@ -237,8 +237,10 @@ export class Db {
     return rows.map(rowToFinding);
   }
 
-  updateFindingStatus(findingId: string, status: RemediationStatus) {
-    this.conn.prepare(`UPDATE findings SET status = ? WHERE id = ?`).run(status, findingId);
+  /** Returns true if a finding with this id existed and was updated. */
+  updateFindingStatus(findingId: string, status: RemediationStatus): boolean {
+    const result = this.conn.prepare(`UPDATE findings SET status = ? WHERE id = ?`).run(status, findingId);
+    return Number(result.changes ?? 0) > 0;
   }
 
   // ---- Research log -----------------------------------------------------

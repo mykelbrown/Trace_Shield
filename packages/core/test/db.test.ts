@@ -49,6 +49,13 @@ describe("Db", () => {
     expect(inv!.seeds[0].value).toBe("alex.morgan@example.com");
   });
 
+  it("updateFindingStatus reports whether a matching finding existed", () => {
+    db.createInvestigation(makeInvestigation());
+    db.upsertFinding(makeFinding());
+    expect(db.updateFindingStatus("fnd_1", "IN_PROGRESS")).toBe(true);
+    expect(db.updateFindingStatus("fnd_does_not_exist", "IN_PROGRESS")).toBe(false);
+  });
+
   it("upserts a finding and preserves remediation status across a re-scan", () => {
     db.createInvestigation(makeInvestigation());
     db.upsertFinding(makeFinding());

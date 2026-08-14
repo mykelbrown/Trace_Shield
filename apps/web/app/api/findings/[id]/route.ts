@@ -14,7 +14,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
 
   const db = getServerDb();
-  db.updateFindingStatus(id, body.status);
+  const updated = db.updateFindingStatus(id, body.status);
+  if (!updated) {
+    return NextResponse.json({ error: "Finding not found" }, { status: 404 });
+  }
 
   const rem = db.conn.prepare(`SELECT * FROM remediation WHERE finding_id = ?`).get(id) as any;
   if (rem) {

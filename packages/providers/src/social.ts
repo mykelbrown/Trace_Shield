@@ -17,10 +17,12 @@ interface Platform {
   key: string;
   label: string;
   allowedHosts: string[];
+  /** The real public profile URL for this platform — used both on a successful check and as the manual-verification link when the live check fails. Never guessed from `key` (e.g. "devto" is dev.to, not devto.com). */
+  profileUrl: (u: string) => string;
   /** Live, ToS-respecting existence check via a documented public API/endpoint. */
   check?: (username: string, config: ProviderContext["config"]) => Promise<PlatformCheckResult | undefined>;
   /** Platforms that reliably block automated checks (login walls, aggressive bot detection) — never scraped. */
-  manualOnly?: { profileUrl: (u: string) => string; reason: string };
+  manualOnly?: { reason: string };
 }
 
 const PLATFORMS: Platform[] = [
@@ -28,6 +30,7 @@ const PLATFORMS: Platform[] = [
     key: "gitlab",
     label: "GitLab",
     allowedHosts: ["gitlab.com"],
+    profileUrl: (u) => `https://gitlab.com/${u}`,
     async check(username, config) {
       const res = await safeFetch(`https://gitlab.com/api/v4/users?username=${encodeURIComponent(username)}`, config, {
         allowedHosts: ["gitlab.com"],
@@ -43,6 +46,7 @@ const PLATFORMS: Platform[] = [
     key: "devto",
     label: "Dev.to",
     allowedHosts: ["dev.to"],
+    profileUrl: (u) => `https://dev.to/${u}`,
     async check(username, config) {
       const res = await safeFetch(`https://dev.to/api/users/by_username?url=${encodeURIComponent(username)}`, config, {
         allowedHosts: ["dev.to"],
@@ -58,6 +62,7 @@ const PLATFORMS: Platform[] = [
     key: "stackoverflow",
     label: "Stack Overflow",
     allowedHosts: ["api.stackexchange.com"],
+    profileUrl: (u) => `https://stackoverflow.com/users?search=${encodeURIComponent(u)}`,
     async check(username, config) {
       const res = await safeFetch(
         `https://api.stackexchange.com/2.3/users?inname=${encodeURIComponent(username)}&site=stackoverflow`,
@@ -75,6 +80,7 @@ const PLATFORMS: Platform[] = [
     key: "keybase",
     label: "Keybase",
     allowedHosts: ["keybase.io"],
+    profileUrl: (u) => `https://keybase.io/${u}`,
     async check(username, config) {
       const res = await safeFetch(`https://keybase.io/_/api/1.0/user/lookup.json?usernames=${encodeURIComponent(username)}`, config, {
         allowedHosts: ["keybase.io"],
@@ -91,6 +97,7 @@ const PLATFORMS: Platform[] = [
     key: "hackernews",
     label: "Hacker News",
     allowedHosts: ["hn.algolia.com"],
+    profileUrl: (u) => `https://news.ycombinator.com/user?id=${encodeURIComponent(u)}`,
     async check(username, config) {
       const res = await safeFetch(`https://hn.algolia.com/api/v1/users/${encodeURIComponent(username)}`, config, {
         allowedHosts: ["hn.algolia.com"],
@@ -103,20 +110,13 @@ const PLATFORMS: Platform[] = [
       return { exists: true, profileUrl: `https://news.ycombinator.com/user?id=${username}`, extra: { karma: json.karma } };
     },
   },
-  { key: "x", label: "X / Twitter", allowedHosts: [], manualOnly: { profileUrl: (u) => `https://x.com/${u}`, reason: "X actively blocks unauthenticated automated profile checks (login wall / bot detection)." } },
-  { key: "instagram", label: "Instagram", allowedHosts: [], manualOnly: { profileUrl: (u) => `https://instagram.com/${u}`, reason: "Instagram requires login and aggressively blocks automated profile checks." } },
-  { key: "tiktok", label: "TikTok", allowedHosts: [], manualOnly: { profileUrl: (u) => `https://www.tiktok.com/@${u}`, reason: "TikTok uses bot-detection (CAPTCHA) that blocks automated checks." } },
-  { key: "facebook", label: "Facebook", allowedHosts: [], manualOnly: { profileUrl: (u) => `https://facebook.com/${u}`, reason: "Facebook requires login for profile lookups and blocks automated access." } },
-  { key: "youtube", label: "YouTube", allowedHosts: [], manualOnly: { profileUrl: (u) => `https://www.youtube.com/@${u}`, reason: "Reliable existence checks require the YouTube Data API (quota-limited key not configured)." } },
-  { key: "reddit", label: "Reddit", allowedHosts: [], manualOnly: { profileUrl: (u) => `https://www.reddit.com/user/${u}`, reason: "Reddit's unauthenticated JSON endpoints are heavily rate-limited/blocked for automated clients." } },
+  { key: "x", label: "X / Twitter", allowedHosts: [], profileUrl: (u) => `https://x.com/${u}`, manualOnly: { reason: "X actively blocks unauthenticated automated profile checks (login wall / bot detection)." } },
+  { key: "instagram", label: "Instagram", allowedHosts: [], profileUrl: (u) => `https://instagram.com/${u}`, manualOnly: { reason: "Instagram requires login and aggressively blocks automated profile checks." } },
+  { key: "tiktok", label: "TikTok", allowedHosts: [], profileUrl: (u) => `https://www.tiktok.com/@${u}`, manualOnly: { reason: "TikTok uses bot-detection (CAPTCHA) that blocks automated checks." } },
+  { key: "facebook", label: "Facebook", allowedHosts: [], profileUrl: (u) => `https://facebook.com/${u}`, manualOnly: { reason: "Facebook requires login for profile lookups and blocks automated access." } },
+  { key: "youtube", label: "YouTube", allowedHosts: [], profileUrl: (u) => `https://www.youtube.com/@${u}`, manualOnly: { reason: "Reliable existence checks require the YouTube Data API (quota-limited key not configured)." } },
+  { key: "reddit", label: "Reddit", allowedHosts: [], profileUrl: (u) => `https://www.reddit.com/user/${u}`, manualOnly: { reason: "Reddit's unauthenticated JSON endpoints are heavily rate-limited/blocked for automated clients." } },
 ];
-
-function mockCheck(platform: Platform, username: string): PlatformCheckResult | undefined {
-  // Deterministic mock so the pipeline is exercisable offline/in CI.
-  const hash = [...`${platform.key}:${username}`].reduce((a, c) => a + c.charCodeAt(0), 0);
-  if (hash % 4 !== 0) return undefined; // most platforms "not found" in mock mode
-  return { exists: true, profileUrl: `https://${platform.key}.example.invalid/${username}`, displayName: `[MOCK] ${username}` };
-}
 
 export const socialProvider: OsintProvider = {
   name: "social_username_enum",
@@ -135,8 +135,8 @@ export const socialProvider: OsintProvider = {
         result.unavailable.push({
           source: `social:${platform.key}`,
           reason: platform.manualOnly.reason,
-          url: platform.manualOnly.profileUrl(seed.value),
-          recommendedManualVerification: `Manually visit ${platform.manualOnly.profileUrl(seed.value)} while logged in to check for an account.`,
+          url: platform.profileUrl(seed.value),
+          recommendedManualVerification: `Manually visit ${platform.profileUrl(seed.value)} while logged in to check for an account.`,
         });
         result.logEntries.push({
           id: newId("log"),
@@ -153,19 +153,29 @@ export const socialProvider: OsintProvider = {
       }
 
       let checkResult: PlatformCheckResult | undefined;
-      let live = true;
       try {
         checkResult = await platform.check!(seed.value, ctx.config);
       } catch (err) {
         const reason = err instanceof SourceUnavailableError ? err.reason : String(err);
+        const fallbackUrl = platform.profileUrl(seed.value);
         result.unavailable.push({
           source: `social:${platform.key}`,
           reason,
-          url: `https://${platform.key}.com/${seed.value}`,
-          recommendedManualVerification: `Manually check https://${platform.key}.com/${seed.value}`,
+          url: fallbackUrl,
+          recommendedManualVerification: `Manually check ${fallbackUrl}`,
         });
-        live = false;
-        checkResult = process.env.NODE_ENV === "test" ? mockCheck(platform, seed.value) : undefined;
+        result.logEntries.push({
+          id: newId("log"),
+          investigationId: ctx.investigationId,
+          timestamp: ctx.now(),
+          query: `username check: ${platform.label}`,
+          source: `social:${platform.key}`,
+          result: `Source unavailable: ${reason}`,
+          identifierSearched: seed.value,
+          module: this.module,
+          confidence: "UNKNOWN",
+        });
+        continue;
       }
 
       result.logEntries.push({
@@ -186,7 +196,7 @@ export const socialProvider: OsintProvider = {
             seed,
             module: "username",
             source: `social:${platform.key}`,
-            providerMode: live ? "live" : "mock",
+            providerMode: "live",
             platform: platform.label,
             title: `${platform.label}: ${checkResult.displayName ?? seed.value}`,
             url: checkResult.profileUrl,
