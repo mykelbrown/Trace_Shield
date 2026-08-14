@@ -1,0 +1,38 @@
+node_modules/
+.next/
+apps/web/AGENTS.md
+apps/web/CLAUDE.md
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+
+# Local data — this app stores real personal OSINT findings locally.
+# Never commit investigation data or generated reports.
+data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+/reports/generated/
+/apps/web/data/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Test coverage
+coverage/
