@@ -1,0 +1,15 @@
+{
+  "name": "@dfi/cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "dfi": "./src/bin.ts"
+  },
+  "dependencies": {
+    "@dfi/core": "*",
+    "@dfi/providers": "*",
+    "@dfi/report": "*",
+    "commander": "^12.1.0"
+  }
+}

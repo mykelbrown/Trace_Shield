@@ -1,0 +1,12 @@
+{
+  "name": "Fictional Demo — Alex Morgan",
+  "note": "Entirely fictional identity bundled for demonstrating DFI end-to-end (spec section 38). Never use real personal information in automated tests or CI.",
+  "runNow": true,
+  "seeds": [
+    { "type": "name", "value": "Alex Morgan", "label": "full name" },
+    { "type": "email", "value": "alex.morgan@example.com", "label": "primary" },
+    { "type": "phone", "value": "+353000000000", "label": "mobile" },
+    { "type": "username", "value": "alexmorgan_test", "label": "developer handle" },
+    { "type": "domain", "value": "example.com", "label": "personal site" }
+  ]
+}

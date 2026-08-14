@@ -1,0 +1,20 @@
+services:
+  dfi:
+    build: .
+    image: dfi:local
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      - DFI_DB_PATH=/app/data/dfi.sqlite
+      - DFI_CONFIG_PATH=/app/config.yaml
+    volumes:
+      - dfi-data:/app/data
+      - dfi-reports:/app/reports/generated
+      - ./config.yaml:/app/config.yaml:ro
+    restart: unless-stopped
+
+volumes:
+  dfi-data:
+  dfi-reports:
